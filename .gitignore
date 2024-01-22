@@ -4,6 +4,7 @@ instant_test_output
 inference_test_output
 
 
+*.txt
 *.png
 *.json
 *.diff
@@ -51,3 +52,4 @@ _darcs
 /projects/*/datasets
 /models
 /snippet
+datasets/*.zip

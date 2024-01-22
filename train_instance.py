@@ -16,12 +16,14 @@ import copy
 import itertools
 import logging
 import os
+import json
+
 
 from collections import OrderedDict
 from typing import Any, Dict, List, Set
 
 import torch
-from detectron2.data.datasets import register_coco_panoptic_separated, builtin_meta, register_coco_instances
+from detectron2.data.datasets import register_coco_panoptic, builtin_meta, register_coco_instances, register_coco_panoptic_separated
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
@@ -45,6 +47,7 @@ from detectron2.evaluation import (
 from detectron2.projects.deeplab import add_deeplab_config, build_lr_scheduler
 from detectron2.solver.build import maybe_add_gradient_clipping
 from detectron2.utils.logger import setup_logger
+from detectron2.structures import BoxMode
 
 # MaskFormer
 from mask2former import (
@@ -59,58 +62,30 @@ from mask2former import (
 )
 import torch
 torch.cuda.empty_cache()
-#register_coco_instances(
-#     name = "coco_instance_train",
-#     metadata = {},
-#     json_file ="/home/coraldl/meta/Mask2Former/datasets/coco/annotations/instance_train.json",
-#     image_root ="/home/coraldl/meta/Mask2Former/datasets/coco/train_RGB")
+
+
+
+# 데이터셋 등록
+register_coco_instances(
+     name = "coco_instance_train",
+     metadata = {},
+     json_file ="/home/coraldl/meta/Mask2Former/datasets/coco_LR_3/annotations/instance_train.json",
+     image_root ="/home/coraldl/meta/Mask2Former/datasets/coco_LR_3/train_RGB")
      
-#register_coco_instances(
-#     name = "coco_instance_val",
-#     metadata = {},
-#     json_file ="/home/coraldl/meta/Mask2Former/datasets/coco/annotations/instance_val.json",
-#     image_root ="/home/coraldl/meta/Mask2Former/datasets/coco/val_RGB")
-dataset_name = "coco_panoptic_seg_train"
-image_root = "/home/coraldl/meta/Mask2Former/datasets/coco/train_RGB"
-panoptic_json = "/home/coraldl/meta/Mask2Former/datasets/coco/annotations/panoptic_train.json"
-instances_json = "/home/coraldl/meta/Mask2Former/datasets/coco/annotations/instance_train.json"
-panoptic_root = "/home/coraldl/meta/Mask2Former/datasets/coco/panoptic_train_mask"
-sem_seg_root = "/home/coraldl/meta/Mask2Former/datasets/coco/panoptic_semseg_train"
+register_coco_instances(
+     name = "coco_instance_test",
+     metadata = {},
+     json_file ="/home/coraldl/meta/Mask2Former/datasets/coco_LR_3/annotations/instance_val.json",
+     image_root ="/home/coraldl/meta/Mask2Former/datasets/coco_LR_3/val_RGB")
+     
+register_coco_instances(
+     name = "coco_instance_val",
+     metadata = {},
+     json_file ="/home/coraldl/meta/Mask2Former/datasets/coco_instance/annotations/instance_val.json",
+     image_root ="/home/coraldl/meta/Mask2Former/datasets/coco_instance/val_RGB")
 
-register_coco_panoptic_separated(
-    name="coco_panoptic_seg_train",
-    metadata = {"thing_dataset_id_to_contiguous_id": {1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 7: 6, 8: 7, 9: 8, 10: 9, 11: 10, 13: 11, 14: 12, 15: 13, 16: 14, 17: 15, 18: 16, 19: 17, 20: 18, 21: 19, 22: 20, 23: 21, 24: 22, 25: 23, 27: 24, 28: 25, 31: 26, 32: 27, 33: 28, 34: 29, 35: 30, 36: 31, 37: 32, 38: 33, 39: 34, 40: 35, 41: 36, 42: 37, 43: 38, 44: 39, 46: 40, 47: 41, 48: 42, 49: 43, 50: 44, 51: 45, 52: 46, 53: 47, 54: 48, 55: 49, 56: 50, 57: 51, 58: 52, 59: 53, 60: 54, 61: 55, 62: 56, 63: 57, 64: 58, 65: 59, 67: 60, 70: 61, 72: 62, 73: 63, 74: 64, 75: 65, 76: 66, 77: 67, 78: 68, 79: 69, 80: 70, 81: 71, 82: 72, 84: 73, 85: 74, 86: 75, 87: 76, 88: 77, 89: 78, 90: 79},
-   
-    "stuff_dataset_id_to_contiguous_id": {92: 80, 93: 81, 95: 82, 100: 83, 107: 84, 109: 85, 112: 86, 118: 87, 119: 88, 122: 89, 125: 90, 128: 91, 130: 92, 133: 93, 138: 94, 141: 95, 144: 96, 145: 97, 147: 98, 148: 99, 149: 100, 151: 101, 154: 102, 155: 103, 156: 104, 159: 105, 161: 106, 166: 107, 168: 108, 171: 109, 175: 110, 176: 111, 177: 112, 178: 113, 180: 114, 181: 115, 184: 116, 185: 117, 186: 118, 187: 119, 188: 120, 189: 121, 190: 122, 191: 123, 192: 124, 193: 125, 194: 126, 195: 127, 196: 128, 197: 129, 198: 130, 199: 131, 200: 132}},
-    image_root= image_root,
-    panoptic_root= panoptic_root,
-    panoptic_json= panoptic_json,
-    sem_seg_root = sem_seg_root,
-    instances_json= instances_json,
-    
-)
 
-tings = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
-         'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
-         'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
-         'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
-         'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
-         'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
-         'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard',
-         'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors',
-         'teddy bear', 'hair drier', 'toothbrush']
 
-stuffs = ['banner', 'blanket', 'bridge', 'cardboard', 'counter', 'curtain', 'door-stuff', 'floor-wood',
-          'flower', 'fruit', 'gravel', 'house', 'light', 'mirror-stuff', 'net', 'pillow', 'platform',
-          'playingfield', 'railroad', 'river', 'road', 'roof', 'sand', 'sea', 'shelf', 'snow', 'stairs', 'tent',
-          'towel', 'wall-brick', 'wall-stone', 'wall-tile', 'wall-wood', 'water', 'window-blind', 'window', 'tree',
-          'fence', 'ceiling', 'sky', 'cabinet', 'table', 'floor', 'pavement', 'mountain', 'grass', 'dirt', 'paper',
-          'food', 'building', 'rock', 'wall', 'rug']
-
-MetadataCatalog.get("coco_panoptic_seg_train_separated").set(thing_classes=tings, stuff_classes=stuffs)
-#metadata = builtin_meta._get_builtin_metadata("coco_panoptic_separated")
-#MetadataCatalog.get("coco_panoptic_seg_train_separated").set(**metadata)
-#MetadataCatalog.get("coco_panoptic_seg_train_stuffonly").set(**metadata)
 
 class Trainer(DefaultTrainer):
     """
@@ -154,8 +129,8 @@ class Trainer(DefaultTrainer):
         # COCO
         if evaluator_type == "coco_panoptic_seg" and cfg.MODEL.MASK_FORMER.TEST.INSTANCE_ON:
             evaluator_list.append(COCOEvaluator(dataset_name, output_dir=output_folder))
-        #if evaluator_type == "coco_panoptic_seg" and cfg.MODEL.MASK_FORMER.TEST.SEMANTIC_ON:
-        #    evaluator_list.append(SemSegEvaluator(dataset_name, distributed=True, output_dir=output_folder))
+        if evaluator_type == "coco_panoptic_seg" and cfg.MODEL.MASK_FORMER.TEST.SEMANTIC_ON:
+            evaluator_list.append(SemSegEvaluator(dataset_name, distributed=True, output_dir=output_folder))
         # Mapillary Vistas
         if evaluator_type == "mapillary_vistas_panoptic_seg" and cfg.MODEL.MASK_FORMER.TEST.INSTANCE_ON:
             evaluator_list.append(InstanceSegEvaluator(dataset_name, output_dir=output_folder))
@@ -224,6 +199,17 @@ class Trainer(DefaultTrainer):
         else:
             mapper = None
             return build_detection_train_loader(cfg, mapper=mapper)
+            
+        data_loader = build_detection_train_loader(cfg, mapper=mapper)
+
+    # DataLoader 내용 확인
+        if cfg.INPUT.DATASET_MAPPER_NAME == "coco_panoptic_lsj":
+            for i, batch in enumerate(data_loader):
+                print(f"Batch {i}, 데이터 예시: {batch[0]}")
+                if i > 5:  # 처음 5개 배치만 출력
+                    break
+
+        return data_loader
 
     @classmethod
     def build_lr_scheduler(cls, cfg, optimizer):

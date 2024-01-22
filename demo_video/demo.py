@@ -42,6 +42,7 @@ def setup_cfg(args):
     add_maskformer2_video_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
+    cfg.MODEL.DEVICE = f"cuda:{args.num_gpus - 1}" if args.num_gpus > 0 else "cpu"
     cfg.freeze()
     return cfg
 
@@ -86,6 +87,13 @@ def get_parser():
         default=[],
         nargs=argparse.REMAINDER,
     )
+    parser.add_argument(
+        "--num-gpus",
+        type=int,
+        default=1,
+        help="Number of GPUs to use for inference",
+    )  # 추가: num-gpus 인수
+
     return parser
 
 
