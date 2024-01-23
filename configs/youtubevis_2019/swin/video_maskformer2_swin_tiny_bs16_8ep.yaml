@@ -10,7 +10,7 @@ MODEL:
     APE: False
     DROP_PATH_RATE: 0.3
     PATCH_NORM: True
-  WEIGHTS: "model_final_86143f.pkl"
+  WEIGHTS: "/home/coraldl/meta/Mask2Former/model_final_c5c739.pkl"
   PIXEL_MEAN: [123.675, 116.280, 103.530]
   PIXEL_STD: [58.395, 57.120, 57.375]
 INPUT:

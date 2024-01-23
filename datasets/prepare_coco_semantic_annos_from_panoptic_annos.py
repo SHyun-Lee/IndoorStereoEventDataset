@@ -1,7 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-# Copyright (c) Facebook, Inc. and its affiliates.
-
 import functools
 import json
 import multiprocessing as mp
@@ -56,12 +52,28 @@ def separate_coco_semantic_from_panoptic(panoptic_json, panoptic_root, sem_seg_r
     pool = mp.Pool(processes=max(mp.cpu_count() // 2, 4))
 
     def iter_annotations():
-        for anno in obj["annotations"]:
-            file_name = anno["file_name"]
-            segments = anno["segments_info"]
-            input = os.path.join(panoptic_root, file_name)
-            output = os.path.join(sem_seg_root, file_name)
-            yield input, output, segments
+        if "annotations" in obj:
+            annotations = obj["annotations"]
+            if isinstance(annotations, list):
+                for anno in annotations:
+                    if isinstance(anno, dict):
+                        print(anno)
+                        file_name = anno.get("file_name", "")
+                        segments = anno.get("segments_info", [])
+                        if file_name:
+                            input_file = os.path.join(panoptic_root, file_name)
+                            output_file = os.path.join(sem_seg_root, file_name)
+                            yield input_file, output_file, segments
+        else:
+            print("패노픽 데이터셋에서 'annotations' 키를 찾을 수 없습니다.")
+#    def iter_annotations():
+#        for anno in obj["annotations"]:
+#            print(anno)
+#            file_name = anno["file_name"]
+#            segments = anno["segments_info"]
+#            input = os.path.join(panoptic_root, file_name)
+#            output = os.path.join(sem_seg_root, file_name)
+#            yield input, output, segments
 
     print("Start writing to {} ...".format(sem_seg_root))
     start = time.time()
@@ -75,10 +87,10 @@ def separate_coco_semantic_from_panoptic(panoptic_json, panoptic_root, sem_seg_r
 
 if __name__ == "__main__":
     dataset_dir = os.path.join(os.getenv("DETECTRON2_DATASETS", "datasets"), "coco")
-    for s in ["val2017", "train2017"]:
+    for s in ["val", "train"]:
         separate_coco_semantic_from_panoptic(
             os.path.join(dataset_dir, "annotations/panoptic_{}.json".format(s)),
-            os.path.join(dataset_dir, "panoptic_{}".format(s)),
+            os.path.join(dataset_dir, "panoptic_{}_mask".format(s)),
             os.path.join(dataset_dir, "panoptic_semseg_{}".format(s)),
             COCO_CATEGORIES,
         )
